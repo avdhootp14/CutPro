@@ -65,10 +65,28 @@ export const createBarber = asyncHandler(async (req, res) => {
 /* -------------------------------------------------------------------------- */
 
 export const getAllBarbers = asyncHandler(async (req, res) => {
-  const barbers = await User.find({
+  const { adminEmail, shopSlug } = req.query;
+
+  let query = {
     role: "barber",
     isActive: true,
-  })
+  };
+
+  if (shopSlug) {
+    const adminUser = await User.findOne({ shopSlug, role: 'admin' });
+    if (!adminUser) {
+      return res.status(200).json(new ApiResponse(200, [], "No shop found for this slug"));
+    }
+    query.shopOwner = adminUser._id;
+  } else if (adminEmail) {
+    const adminUser = await User.findOne({ email: adminEmail, role: 'admin' });
+    if (!adminUser) {
+      return res.status(200).json(new ApiResponse(200, [], "No shop found for this email"));
+    }
+    query.shopOwner = adminUser._id;
+  }
+
+  const barbers = await User.find(query)
     .select("-password -refreshToken")
     .populate("services")
     .sort({ createdAt: -1 });

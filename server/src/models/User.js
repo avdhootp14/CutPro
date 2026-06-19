@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 
 const userSchema = new mongoose.Schema(
   {
@@ -32,7 +33,7 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["customer", "barber", "admin"],
+      enum: ["customer", "admin", "barber"],
       default: "customer",
     },
 
@@ -112,6 +113,61 @@ isActive: {
       type: String,
       default: "",
     },
+    resetPasswordToken: String,
+    resetPasswordExpire: Date,
+    
+    // Shop Admin Fields
+    shopSlug: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      unique: true,
+      sparse: true, // Allows multiple null/undefined values for non-admins
+    },
+    shopName: {
+      type: String,
+      trim: true,
+    },
+    shopLogo: {
+      type: String,
+    },
+    country: {
+      type: String,
+      trim: true,
+    },
+    state: {
+      type: String,
+      trim: true,
+    },
+    district: {
+      type: String,
+      trim: true,
+    },
+    city: {
+      type: String,
+      trim: true,
+    },
+    address: {
+      type: String,
+      trim: true,
+    },
+
+    // Barber Specific Fields
+    bio: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+    },
+    portfolioImages: {
+      type: [String],
+      default: [],
+    },
+    
+    shopOwner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      // Only required for barbers, but we can't make it strict required since customers and admins don't have it
+    },
   },
   {
     timestamps: true,
@@ -166,6 +222,23 @@ userSchema.methods.generateRefreshToken = function () {
       expiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
     }
   );
+};
+
+// Generate and hash password token
+userSchema.methods.getResetPasswordToken = function () {
+  // Generate token
+  const resetToken = crypto.randomBytes(20).toString('hex');
+
+  // Hash token and set to resetPasswordToken field
+  this.resetPasswordToken = crypto
+    .createHash('sha256')
+    .update(resetToken)
+    .digest('hex');
+
+  // Set expire (10 mins)
+  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+
+  return resetToken;
 };
 
 const User = mongoose.model("User", userSchema);

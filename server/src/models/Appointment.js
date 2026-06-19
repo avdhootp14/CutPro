@@ -14,6 +14,12 @@ const appointmentSchema = new mongoose.Schema(
       required: true,
     },
 
+    shopOwner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
     services: [
       {
         type: mongoose.Schema.Types.ObjectId,

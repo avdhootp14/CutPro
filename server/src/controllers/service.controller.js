@@ -38,8 +38,28 @@ export const createService = asyncHandler(async (req, res) => {
 /*                           Get All Services                                 */
 /* -------------------------------------------------------------------------- */
 
+import User from "../models/User.js";
+
 export const getAllServices = asyncHandler(async (req, res) => {
-  const services = await Service.find().sort({
+  const { adminEmail, shopSlug } = req.query;
+  
+  let query = {};
+  
+  if (shopSlug) {
+    const adminUser = await User.findOne({ shopSlug, role: 'admin' });
+    if (!adminUser) {
+      return res.status(200).json(new ApiResponse(200, [], "No shop found for this slug"));
+    }
+    query.shopOwner = adminUser._id;
+  } else if (adminEmail) {
+    const adminUser = await User.findOne({ email: adminEmail, role: 'admin' });
+    if (!adminUser) {
+      return res.status(200).json(new ApiResponse(200, [], "No shop found for this email"));
+    }
+    query.shopOwner = adminUser._id;
+  }
+
+  const services = await Service.find(query).sort({
     createdAt: -1,
   });
 

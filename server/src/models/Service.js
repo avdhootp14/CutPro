@@ -6,7 +6,6 @@ const serviceSchema = new mongoose.Schema(
       type: String,
       required: [true, "Service name is required"],
       trim: true,
-      unique: true,
     },
 
     description: {
@@ -46,15 +45,34 @@ const serviceSchema = new mongoose.Schema(
       default: "",
     },
 
+    discountPrice: {
+      type: Number,
+      min: 0,
+    },
+
+    hasOffer: {
+      type: Boolean,
+      default: false,
+    },
+
     isActive: {
       type: Boolean,
       default: true,
+    },
+
+    shopOwner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: [true, "Service must belong to a shop owner (admin)"],
     },
   },
   {
     timestamps: true,
   }
 );
+
+// Ensure that a specific shop owner cannot have duplicate service names
+serviceSchema.index({ shopOwner: 1, name: 1 }, { unique: true });
 
 const Service = mongoose.model("Service", serviceSchema);
 

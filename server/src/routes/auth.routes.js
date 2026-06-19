@@ -1,6 +1,7 @@
 import express from "express";
 import {
   registerUser,
+  registerPartner,
   loginUser,
   logoutUser,
   getCurrentUser,
@@ -12,6 +13,7 @@ import verifyJWT from "../middleware/auth.middleware.js";
 const router = express.Router();
 
 router.post("/register", registerUser);
+router.post("/register-partner", registerPartner);
 
 router.post("/login", loginUser);
 

@@ -72,6 +72,59 @@ export const registerUser = asyncHandler(async (req, res) => {
 });
 
 /* -------------------------------------------------------------------------- */
+/*                            Register Partner (SaaS)                         */
+/* -------------------------------------------------------------------------- */
+
+export const registerPartner = asyncHandler(async (req, res) => {
+  const { name, email, phone, password, shopName, shopSlug } = req.body;
+
+  if (!name || !email || !phone || !password || !shopName || !shopSlug) {
+    throw new ApiError(400, "All fields are required");
+  }
+
+  // Validate shopSlug (only alphanumeric and hyphens, no spaces)
+  const slugRegex = /^[a-z0-9-]+$/;
+  if (!slugRegex.test(shopSlug)) {
+    throw new ApiError(400, "Shop Slug can only contain lowercase letters, numbers, and hyphens.");
+  }
+
+  const existingUser = await User.findOne({
+    $or: [{ email }, { phone }],
+  });
+
+  if (existingUser) {
+    throw new ApiError(409, "A user with this email or phone already exists");
+  }
+
+  const existingSlug = await User.findOne({ shopSlug });
+  if (existingSlug) {
+    throw new ApiError(409, "This URL slug is already taken by another salon");
+  }
+
+  const user = await User.create({
+    name,
+    email,
+    phone,
+    password,
+    role: "admin",
+    shopName,
+    shopSlug,
+  });
+
+  const createdUser = await User.findById(user._id).select(
+    "-password -refreshToken"
+  );
+
+  return res.status(201).json(
+    new ApiResponse(
+      201,
+      createdUser,
+      "Partner account created successfully"
+    )
+  );
+});
+
+/* -------------------------------------------------------------------------- */
 /*                                 Login User                                 */
 /* -------------------------------------------------------------------------- */
 

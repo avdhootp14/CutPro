@@ -12,6 +12,8 @@ import barberDashboardRoutes from "./routes/barberDashboard.routes.js";
 import queueRoutes from "./routes/queue.routes.js";
 import reviewRoutes from "./routes/review.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
+import shopRoutes from "./routes/shop.routes.js";
 import errorHandler from "./middleware/error.middleware.js";
 
 const app = express();
@@ -30,7 +32,11 @@ app.use(
 
 app.use(
   cors({
-    origin: process.env.CLIENT_URL,
+    origin: [
+      process.env.CLIENT_URL || "http://localhost:5173",
+      "http://localhost:5174",
+      "http://localhost:5175"
+    ],
     credentials: true,
   })
 );
@@ -46,6 +52,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/shop", shopRoutes);
 app.use("/api/v1/services", serviceRoutes);
 app.use("/api/v1/barbers", barberRoutes);
 app.use("/api/v1/appointments", appointmentRoutes);
@@ -58,6 +65,7 @@ app.use(
 app.use("/api/v1/queue", queueRoutes);
 app.use("/api/v1/reviews", reviewRoutes);
 app.use("/api/v1/payments", paymentRoutes);
+app.use("/api/v1/admin", adminRoutes);
 /* ===========================
    Global Error Handler
    (ALWAYS LAST)
