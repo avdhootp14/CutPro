@@ -5,6 +5,7 @@
 
   **The Elite Grooming Network & Salon SaaS Platform**
 
+  [![Next.js](https://img.shields.io/badge/Next.js-App_Router-black.svg?style=flat&logo=next.js)](https://nextjs.org/)
   [![React](https://img.shields.io/badge/React-19.x-blue.svg?style=flat&logo=react)](https://reactjs.org/)
   [![Node.js](https://img.shields.io/badge/Node.js-Backend-green.svg?style=flat&logo=node.js)](https://nodejs.org/)
   [![MongoDB](https://img.shields.io/badge/MongoDB-Database-success.svg?style=flat&logo=mongodb)](https://www.mongodb.com/)
@@ -39,10 +40,9 @@ Whether you're a salon owner looking to streamline your operations or a customer
 ## 🛠 Tech Stack
 
 **Frontend (Client)**
+- Next.js (App Router)
 - React 19 (TypeScript)
-- Vite (Build Tool)
 - Tailwind CSS (Styling & Animations)
-- React Router v7 (Navigation)
 - Axios (HTTP Client)
 - Lucide React (Icons)
 - Razorpay Web SDK (Payments)
@@ -108,7 +108,7 @@ Make sure you have the following installed on your machine:
      npm run dev
      ```
    
-   The application will be running at `http://localhost:5173`.
+   The application will be running at `http://localhost:3000`.
 
 ---
 
