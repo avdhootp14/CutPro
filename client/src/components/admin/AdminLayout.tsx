@@ -1,5 +1,8 @@
+"use client";
 import React, { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+
 import { useAuth } from '../../context/AuthContext';
 import {
   LayoutDashboard,
@@ -27,13 +30,13 @@ const sidebarLinks = [
 
 const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, logout } = useAuth();
-  const location = useLocation();
-  const navigate = useNavigate();
+  const pathname = usePathname();
+  const navigate = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
-    navigate('/admin/login');
+    navigate.push('/admin/login');
   };
 
   return (
@@ -50,12 +53,11 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         {/* Nav */}
         <nav className="flex-1 px-3 py-6 flex flex-col gap-1 overflow-y-auto">
           {sidebarLinks.map(link => {
-            const isActive = location.pathname === link.to;
+            const isActive = pathname === link.to;
             const Icon = link.icon;
             return (
-              <Link
-                key={link.to}
-                to={link.to}
+              <Link key={link.to}
+                href={link.to}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg text-[0.88rem] font-medium transition-all duration-200 group ${
                   isActive
                     ? 'bg-accent/10 text-accent border border-accent/20'
@@ -109,12 +111,11 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </div>
         <nav className="px-3 py-6 flex flex-col gap-1">
           {sidebarLinks.map(link => {
-            const isActive = location.pathname === link.to;
+            const isActive = pathname === link.to;
             const Icon = link.icon;
             return (
-              <Link
-                key={link.to}
-                to={link.to}
+              <Link key={link.to}
+                href={link.to}
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg text-[0.88rem] font-medium transition-all duration-200 ${
                   isActive
@@ -156,12 +157,12 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 <div className="flex items-center gap-2 text-[0.72rem] text-gray-500 mb-0.5">
                   <span>Admin</span>
                   <ChevronRight size={10} />
-                  <span className="text-gray-400">{sidebarLinks.find(l => l.to === location.pathname)?.label || 'Panel'}</span>
+                  <span className="text-gray-400">{sidebarLinks.find(l => l.to === pathname)?.label || 'Panel'}</span>
                 </div>
                 <h2 className="text-white font-semibold text-[1.15rem] leading-tight">
-                  {location.pathname === '/admin/dashboard' 
+                  {pathname === '/admin/dashboard' 
                     ? <>Welcome back, <span className="text-accent">{user?.name?.split(' ')[0] || 'Admin'}</span> 👋</>
-                    : sidebarLinks.find(l => l.to === location.pathname)?.label || 'Admin Panel'
+                    : sidebarLinks.find(l => l.to === pathname)?.label || 'Admin Panel'
                   }
                 </h2>
               </div>
@@ -178,8 +179,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 </span>
               </div>
               <div className="hidden sm:block w-px h-8 bg-white/[0.06]" />
-              <Link 
-                to="/" 
+              <Link href="/" 
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[0.78rem] font-medium text-gray-400 bg-white/[0.03] border border-white/[0.06] hover:text-accent hover:border-accent/20 transition-all"
               >
                 <ExternalLink size={13} />

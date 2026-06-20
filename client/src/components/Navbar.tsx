@@ -1,6 +1,9 @@
+"use client";
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import Link from 'next/link';
+import { usePathname, useParams } from 'next/navigation';
+
 import { useAuth } from '../context/AuthContext';
 import { Scissors, Menu, X, ChevronRight } from 'lucide-react';
 
@@ -8,8 +11,8 @@ const Navbar: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, logout } = useAuth();
-  const location = useLocation();
-  const { shopSlug } = useParams<{ shopSlug: string }>();
+  const pathname = usePathname();
+  const { shopSlug } = useParams() as any;
   
   const [shopName, setShopName] = useState('CUTPRO');
   const [shopLogo, setShopLogo] = useState('');
@@ -31,7 +34,7 @@ const Navbar: React.FC = () => {
 
   useEffect(() => {
     setMobileOpen(false);
-  }, [location]);
+  }, [pathname]);
 
   const navLinks = [
     { to: `/${shopSlug || ''}`, label: 'Home' },
@@ -57,7 +60,7 @@ const Navbar: React.FC = () => {
         }`}
       >
         <div className="container flex items-center justify-between mx-auto px-4 sm:px-8 max-w-[1240px]">
-          <Link to={`/${shopSlug || ''}`} className="flex items-center gap-2 font-serif text-[1.4rem] font-bold text-white tracking-[0.1em]">
+          <Link href={`/${shopSlug || ''}`} className="flex items-center gap-2 font-serif text-[1.4rem] font-bold text-white tracking-[0.1em]">
             {shopLogo ? (
               <img src={shopLogo} alt={shopName} className="h-8 object-contain" />
             ) : (
@@ -68,11 +71,10 @@ const Navbar: React.FC = () => {
 
           <div className="hidden lg:flex gap-10">
             {navLinks.map(link => {
-              const isActive = location.pathname === link.to;
+              const isActive = pathname === link.to;
               return (
-                <Link
-                  key={link.to}
-                  to={link.to}
+                <Link key={link.to}
+                  href={link.to}
                   className={`relative flex items-center gap-1 text-[0.85rem] font-bold tracking-[0.1em] uppercase transition-colors duration-300 ${
                     isActive ? 'text-accent' : 'text-gray-400 hover:text-white'
                   }`}
@@ -87,7 +89,7 @@ const Navbar: React.FC = () => {
           <div className="hidden lg:flex items-center gap-3">
             {user ? (
               <>
-                <Link to={getDashboardPath()} className="btn btn-ghost btn-sm">
+                <Link href={getDashboardPath()} className="btn btn-ghost btn-sm">
                   {user.role === 'admin' ? 'Admin Panel' : 'Dashboard'}
                 </Link>
                 <button onClick={logout} className="btn btn-outline btn-sm">
@@ -96,10 +98,10 @@ const Navbar: React.FC = () => {
               </>
             ) : (
               <>
-                <Link to="/login" className="btn btn-ghost btn-sm">
+                <Link href="/login" className="btn btn-ghost btn-sm">
                   Sign In
                 </Link>
-                <Link to="/book" className="btn btn-accent btn-sm">
+                <Link href="/book" className="btn btn-accent btn-sm">
                   Book Now <ChevronRight size={16} />
                 </Link>
               </>
@@ -134,9 +136,8 @@ const Navbar: React.FC = () => {
         >
           <div className="flex flex-col gap-1">
             {navLinks.map(link => (
-              <Link
-                key={link.to}
-                to={link.to}
+              <Link key={link.to}
+                href={link.to}
                 className="py-4 text-[1.1rem] font-medium text-gray-400 border-b border-white/10 transition-colors duration-300 hover:text-accent"
               >
                 {link.label}
@@ -146,15 +147,15 @@ const Navbar: React.FC = () => {
           <div className="flex flex-col gap-3 mt-auto">
             {user ? (
               <>
-                <Link to={getDashboardPath()} className="btn btn-outline btn-full">
+                <Link href={getDashboardPath()} className="btn btn-outline btn-full">
                   {user.role === 'admin' ? 'Admin Panel' : 'Dashboard'}
                 </Link>
                 <button onClick={logout} className="btn btn-ghost btn-full">Logout</button>
               </>
             ) : (
               <>
-                <Link to="/login" className="btn btn-outline btn-full">Sign In</Link>
-                <Link to="/book" className="btn btn-accent btn-full">Book Now</Link>
+                <Link href="/login" className="btn btn-outline btn-full">Sign In</Link>
+                <Link href="/book" className="btn btn-accent btn-full">Book Now</Link>
               </>
             )}
           </div>

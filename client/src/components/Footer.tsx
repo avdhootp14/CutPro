@@ -1,9 +1,12 @@
+"use client";
 import React from 'react';
-import { Link, useParams } from 'react-router-dom';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+
 import { Scissors, Globe, Heart, Phone, Mail, MapPin, Clock } from 'lucide-react';
 
 const Footer: React.FC = () => {
-  const { shopSlug } = useParams<{ shopSlug: string }>();
+  const { shopSlug } = useParams() as any;
   const base = `/${shopSlug || ''}`;
 
   return (
@@ -12,7 +15,7 @@ const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8 mb-12">
           {/* Brand Column */}
           <div className="flex flex-col gap-4">
-            <Link to={base} className="flex items-center gap-2 font-serif text-[1.4rem] font-bold text-white mb-2">
+            <Link href={base} className="flex items-center gap-2 font-serif text-[1.4rem] font-bold text-white mb-2">
               <Scissors size={20} className="text-accent" />
               <span>CUTPRO</span>
             </Link>
@@ -32,19 +35,19 @@ const Footer: React.FC = () => {
           {/* Quick Links */}
           <div className="flex flex-col gap-3">
             <h4 className="font-serif text-[1.1rem] font-semibold text-white mb-3">Quick Links</h4>
-            <Link to={`${base}/services`} className="text-gray-400 text-[0.9rem] transition-colors duration-300 hover:text-accent hover:translate-x-1 inline-block">Our Services</Link>
-            <Link to={`${base}/barbers`} className="text-gray-400 text-[0.9rem] transition-colors duration-300 hover:text-accent hover:translate-x-1 inline-block">Meet the Team</Link>
-            <Link to={`${base}/book`} className="text-gray-400 text-[0.9rem] transition-colors duration-300 hover:text-accent hover:translate-x-1 inline-block">Book Appointment</Link>
-            <Link to={`${base}/contact`} className="text-gray-400 text-[0.9rem] transition-colors duration-300 hover:text-accent hover:translate-x-1 inline-block">Contact Us</Link>
+            <Link href={`${base}/services`} className="text-gray-400 text-[0.9rem] transition-colors duration-300 hover:text-accent hover:translate-x-1 inline-block">Our Services</Link>
+            <Link href={`${base}/barbers`} className="text-gray-400 text-[0.9rem] transition-colors duration-300 hover:text-accent hover:translate-x-1 inline-block">Meet the Team</Link>
+            <Link href={`${base}/book`} className="text-gray-400 text-[0.9rem] transition-colors duration-300 hover:text-accent hover:translate-x-1 inline-block">Book Appointment</Link>
+            <Link href={`${base}/contact`} className="text-gray-400 text-[0.9rem] transition-colors duration-300 hover:text-accent hover:translate-x-1 inline-block">Contact Us</Link>
           </div>
 
           {/* Services */}
           <div className="flex flex-col gap-3">
             <h4 className="font-serif text-[1.1rem] font-semibold text-white mb-3">Services</h4>
-            <Link to={`${base}/services`} className="text-gray-400 text-[0.9rem] transition-colors duration-300 hover:text-accent hover:translate-x-1 inline-block">Haircuts</Link>
-            <Link to={`${base}/services`} className="text-gray-400 text-[0.9rem] transition-colors duration-300 hover:text-accent hover:translate-x-1 inline-block">Beard Grooming</Link>
-            <Link to={`${base}/services`} className="text-gray-400 text-[0.9rem] transition-colors duration-300 hover:text-accent hover:translate-x-1 inline-block">Hot Towel Shave</Link>
-            <Link to={`${base}/services`} className="text-gray-400 text-[0.9rem] transition-colors duration-300 hover:text-accent hover:translate-x-1 inline-block">Hair Coloring</Link>
+            <Link href={`${base}/services`} className="text-gray-400 text-[0.9rem] transition-colors duration-300 hover:text-accent hover:translate-x-1 inline-block">Haircuts</Link>
+            <Link href={`${base}/services`} className="text-gray-400 text-[0.9rem] transition-colors duration-300 hover:text-accent hover:translate-x-1 inline-block">Beard Grooming</Link>
+            <Link href={`${base}/services`} className="text-gray-400 text-[0.9rem] transition-colors duration-300 hover:text-accent hover:translate-x-1 inline-block">Hot Towel Shave</Link>
+            <Link href={`${base}/services`} className="text-gray-400 text-[0.9rem] transition-colors duration-300 hover:text-accent hover:translate-x-1 inline-block">Hair Coloring</Link>
           </div>
 
           {/* Contact */}
