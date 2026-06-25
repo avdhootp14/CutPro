@@ -294,6 +294,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
 import crypto from "crypto";
 import sendEmail from "../utils/sendEmail.js";
+import { getResetPasswordTemplate } from "../utils/emailTemplates.js";
 
 // @desc    Request password reset link
 // @route   POST /api/v1/admin/request-password-reset
@@ -310,7 +311,7 @@ export const requestPasswordReset = asyncHandler(async (req, res) => {
   await shop.save({ validateBeforeSave: false });
 
   // Create reset url
-  const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/admin/reset-password/${resetToken}`;
+  const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/admin/reset-password/${resetToken}`;
 
   const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please make a PUT request to: \n\n ${resetUrl}`;
 
@@ -319,6 +320,7 @@ export const requestPasswordReset = asyncHandler(async (req, res) => {
       email: shop.owner.email,
       subject: 'Password reset token',
       message,
+      htmlMessage: getResetPasswordTemplate(resetUrl),
     });
 
     res.status(200).json(

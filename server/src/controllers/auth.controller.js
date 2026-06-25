@@ -5,6 +5,7 @@ import asyncHandler from "../utils/asyncHandler.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import ApiError from "../utils/ApiError.js";
 import sendEmail from "../utils/sendEmail.js";
+import { getResetPasswordTemplate, getVerificationTemplate } from "../utils/emailTemplates.js";
 import crypto from "crypto";
 
 /* -------------------------------------------------------------------------- */
@@ -75,6 +76,7 @@ export const registerUser = asyncHandler(async (req, res) => {
       email: customer.email,
       subject: "Email Verification - CutPro",
       message,
+      htmlMessage: getVerificationTemplate(verificationUrl),
     });
   } catch (error) {
     customer.emailVerificationToken = undefined;
@@ -261,6 +263,7 @@ export const resendVerification = asyncHandler(async (req, res) => {
       email: isShopOwner ? userDoc.owner.email : userDoc.email,
       subject: "Email Verification - CutPro",
       message,
+      htmlMessage: getVerificationTemplate(verificationUrl),
     });
   } catch (error) {
     if (isShopOwner) {
@@ -576,6 +579,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
       email: isShopOwner ? user.owner.email : user.email,
       subject: "Password Reset Request - CutPro",
       message,
+      htmlMessage: getResetPasswordTemplate(resetUrl),
     });
 
     res.status(200).json(new ApiResponse(200, null, "Email sent successfully"));

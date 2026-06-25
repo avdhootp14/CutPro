@@ -5,6 +5,7 @@ import asyncHandler from "../utils/asyncHandler.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import ApiError from "../utils/ApiError.js";
 import sendEmail from "../utils/sendEmail.js";
+import { getVerificationTemplate } from "../utils/emailTemplates.js";
 
 /* -------------------------------------------------------------------------- */
 /*                          Customer Dashboard                                */
@@ -163,6 +164,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
         email: customer.email,
         subject: "Verify Your New Email - CutPro",
         message,
+        htmlMessage: getVerificationTemplate(verificationUrl),
       });
     } catch (error) {
       customer.emailVerificationToken = undefined;
