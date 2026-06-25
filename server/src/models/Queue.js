@@ -11,13 +11,13 @@ const queueSchema = new mongoose.Schema(
 
     customer: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Customer",
       required: true,
     },
 
     barber: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Barber",
       required: true,
     },
 

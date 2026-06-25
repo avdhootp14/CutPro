@@ -1,4 +1,5 @@
-import User from "../models/User.js";
+import Shop from "../models/Shop.js";
+import Barber from "../models/Barber.js";
 import Service from "../models/Service.js";
 import Appointment from "../models/Appointment.js";
 import asyncHandler from "../utils/asyncHandler.js";
@@ -9,15 +10,15 @@ import ApiResponse from "../utils/ApiResponse.js";
 // @route   GET /api/v1/admin/stats
 // @access  Private/Admin
 export const getDashboardStats = asyncHandler(async (req, res) => {
-  const totalAppointments = await Appointment.countDocuments({ shopOwner: req.user._id });
-  const totalBarbers = await User.countDocuments({ role: "barber", shopOwner: req.user._id });
+  const totalAppointments = await Appointment.countDocuments({ shopId: req.user._id });
+  const totalBarbers = await Barber.countDocuments({ shopId: req.user._id, isActive: true });
   
-  const customersList = await Appointment.distinct("customer", { shopOwner: req.user._id });
+  const customersList = await Appointment.distinct("customer", { shopId: req.user._id });
   const totalCustomers = customersList.length;
 
-  const totalServices = await Service.countDocuments({ shopOwner: req.user._id });
+  const totalServices = await Service.countDocuments({ shopId: req.user._id });
 
-  const recentAppointments = await Appointment.find({ shopOwner: req.user._id })
+  const recentAppointments = await Appointment.find({ shopId: req.user._id })
     .sort({ appointmentDate: -1 })
     .limit(5)
     .populate("barber", "name avatar")
@@ -32,9 +33,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
   startOfWeek.setHours(0, 0, 0, 0);
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  // We only count 'completed' or 'paid' appointments as revenue usually, or 'confirmed'. 
-  // Let's count all that are not cancelled for this simple example, or just sum totalPrice.
-  const appointmentsForRevenue = await Appointment.find({ shopOwner: req.user._id, status: { $ne: 'cancelled' } });
+  const appointmentsForRevenue = await Appointment.find({ shopId: req.user._id, status: { $ne: 'cancelled' } });
   
   let dailyRevenue = 0;
   let weeklyRevenue = 0;
@@ -73,14 +72,41 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/admin/appointments
 // @access  Private/Admin
 export const getAllAppointments = asyncHandler(async (req, res) => {
-  const appointments = await Appointment.find({ shopOwner: req.user._id })
+  const appointments = await Appointment.find({ shopId: req.user._id })
     .sort({ appointmentDate: -1, startTime: -1 })
     .populate("barber", "name avatar")
-    .populate("customer", "name phone email")
-    .populate("services", "name price");
+    .populate("customer", "name phone")
+    .populate("services", "name price duration");
 
-  res.status(200).json(
+  return res.status(200).json(
     new ApiResponse(200, appointments, "Appointments fetched successfully")
+  );
+});
+
+/* -------------------------------------------------------------------------- */
+/*                        Update Appointment Status                           */
+/* -------------------------------------------------------------------------- */
+
+export const updateAppointmentStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  const validStatuses = ["pending", "confirmed", "completed", "cancelled"];
+  if (!validStatuses.includes(status)) {
+    throw new ApiError(400, "Invalid status provided");
+  }
+
+  const appointment = await Appointment.findById(id);
+
+  if (!appointment) {
+    throw new ApiError(404, "Appointment not found");
+  }
+
+  appointment.status = status;
+  await appointment.save();
+
+  return res.status(200).json(
+    new ApiResponse(200, appointment, "Appointment status updated successfully")
   );
 });
 
@@ -88,32 +114,26 @@ export const getAllAppointments = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/admin/barbers
 // @access  Private/Admin
 export const addBarber = asyncHandler(async (req, res) => {
-  const { name, email, phone, password, experience, specialization, workingDays, startTime, endTime } = req.body;
+  const { name, phone, experience, specialization, workingHours, bio, portfolioImages, avatar } = req.body;
 
-  const userExists = await User.findOne({ $or: [{ email }, { phone }] });
-  if (userExists) {
-    throw new ApiError(400, "User with this email or phone already exists");
+  if (!name) {
+    throw new ApiError(400, "Barber name is required");
   }
 
-  const barber = await User.create({
+  const barber = await Barber.create({
+    shopId: req.user._id,
     name,
-    email,
     phone,
-    password,
-    role: "barber",
     experience,
     specialization,
-    workingDays,
-    startTime,
-    endTime,
-    shopOwner: req.user._id,
-    isVerified: true
+    workingHours,
+    bio,
+    portfolioImages,
+    avatar,
   });
 
-  const createdBarber = await User.findById(barber._id).select("-password -refreshToken");
-
   res.status(201).json(
-    new ApiResponse(201, createdBarber, "Barber created successfully")
+    new ApiResponse(201, barber, "Barber created successfully")
   );
 });
 
@@ -121,11 +141,11 @@ export const addBarber = asyncHandler(async (req, res) => {
 // @route   PUT /api/v1/admin/barbers/:id
 // @access  Private/Admin
 export const updateBarber = asyncHandler(async (req, res) => {
-  const { name, phone, experience, specialization, workingDays, startTime, endTime, isActive, bio, portfolioImages } = req.body;
+  const { name, phone, experience, specialization, workingHours, isActive, bio, portfolioImages } = req.body;
   const barberId = req.params.id;
 
-  const barber = await User.findOne({ _id: barberId, shopOwner: req.user._id });
-  if (!barber || barber.role !== "barber") {
+  const barber = await Barber.findOne({ _id: barberId, shopId: req.user._id });
+  if (!barber) {
     throw new ApiError(404, "Barber not found");
   }
 
@@ -133,9 +153,7 @@ export const updateBarber = asyncHandler(async (req, res) => {
   barber.phone = phone || barber.phone;
   barber.experience = experience !== undefined ? experience : barber.experience;
   barber.specialization = specialization || barber.specialization;
-  barber.workingDays = workingDays || barber.workingDays;
-  barber.startTime = startTime || barber.startTime;
-  barber.endTime = endTime || barber.endTime;
+  barber.workingHours = workingHours || barber.workingHours;
   
   if (bio !== undefined) barber.bio = bio;
   if (portfolioImages !== undefined) barber.portfolioImages = portfolioImages;
@@ -146,10 +164,8 @@ export const updateBarber = asyncHandler(async (req, res) => {
 
   await barber.save();
 
-  const updatedBarber = await User.findById(barberId).select("-password -refreshToken");
-
   res.status(200).json(
-    new ApiResponse(200, updatedBarber, "Barber updated successfully")
+    new ApiResponse(200, barber, "Barber updated successfully")
   );
 });
 
@@ -157,7 +173,7 @@ export const updateBarber = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/admin/barbers
 // @access  Private/Admin
 export const getAllBarbers = asyncHandler(async (req, res) => {
-    const barbers = await User.find({ role: "barber", shopOwner: req.user._id }).select("-password -refreshToken");
+    const barbers = await Barber.find({ shopId: req.user._id });
     res.status(200).json(new ApiResponse(200, barbers, "Barbers fetched successfully"));
 });
 
@@ -167,7 +183,7 @@ export const getAllBarbers = asyncHandler(async (req, res) => {
 export const addService = asyncHandler(async (req, res) => {
   const { name, description, price, duration, category, hasOffer, discountPrice } = req.body;
 
-  const serviceExists = await Service.findOne({ name, shopOwner: req.user._id });
+  const serviceExists = await Service.findOne({ name, shopId: req.user._id });
   if (serviceExists) {
     throw new ApiError(400, "Service with this name already exists");
   }
@@ -180,7 +196,7 @@ export const addService = asyncHandler(async (req, res) => {
     category,
     hasOffer,
     discountPrice,
-    shopOwner: req.user._id
+    shopId: req.user._id
   });
 
   res.status(201).json(
@@ -194,7 +210,7 @@ export const addService = asyncHandler(async (req, res) => {
 export const updateService = asyncHandler(async (req, res) => {
   const { name, description, price, duration, category, hasOffer, discountPrice, isActive } = req.body;
   
-  const service = await Service.findOne({ _id: req.params.id, shopOwner: req.user._id });
+  const service = await Service.findOne({ _id: req.params.id, shopId: req.user._id });
   if (!service) {
     throw new ApiError(404, "Service not found");
   }
@@ -220,13 +236,11 @@ export const updateService = asyncHandler(async (req, res) => {
 // @route   DELETE /api/v1/admin/services/:id
 // @access  Private/Admin
 export const deleteService = asyncHandler(async (req, res) => {
-  const service = await Service.findOne({ _id: req.params.id, shopOwner: req.user._id });
+  const service = await Service.findOne({ _id: req.params.id, shopId: req.user._id });
   if (!service) {
     throw new ApiError(404, "Service not found");
   }
 
-  // Soft delete or hard delete? Let's hard delete for simplicity unless isActive is used.
-  // The model has isActive, so soft delete is better.
   service.isActive = false;
   await service.save();
 
@@ -241,38 +255,40 @@ export const deleteService = asyncHandler(async (req, res) => {
 export const updateProfile = asyncHandler(async (req, res) => {
   const { name, email, phone, shopName, shopLogo, country, state, district, city, address } = req.body;
 
-  const admin = await User.findById(req.user._id);
-  if (!admin) {
-    throw new ApiError(404, "User not found");
+  const shop = await Shop.findById(req.user._id);
+  if (!shop) {
+    throw new ApiError(404, "Shop not found");
   }
 
   // Check if email/phone already taken by another user
-  if (email && email !== admin.email) {
-    const emailExists = await User.findOne({ email, _id: { $ne: admin._id } });
-    if (emailExists) throw new ApiError(400, "Email already in use");
+  if (email && email !== shop.owner.email) {
+    const emailExistsInShops = await Shop.findOne({ "owner.email": email, _id: { $ne: shop._id } });
+    const emailExistsInCustomers = await import("../models/Customer.js").then(m => m.default.findOne({ email }));
+    if (emailExistsInShops || emailExistsInCustomers) throw new ApiError(400, "Email already in use");
   }
-  if (phone && phone !== admin.phone) {
-    const phoneExists = await User.findOne({ phone, _id: { $ne: admin._id } });
-    if (phoneExists) throw new ApiError(400, "Phone number already in use");
+  if (phone && phone !== shop.owner.phone) {
+    const phoneExistsInShops = await Shop.findOne({ "owner.phone": phone, _id: { $ne: shop._id } });
+    const phoneExistsInCustomers = await import("../models/Customer.js").then(m => m.default.findOne({ phone }));
+    if (phoneExistsInShops || phoneExistsInCustomers) throw new ApiError(400, "Phone number already in use");
   }
 
-  admin.name = name || admin.name;
-  admin.email = email || admin.email;
-  admin.phone = phone || admin.phone;
-  if (shopName !== undefined) admin.shopName = shopName;
-  if (shopLogo !== undefined) admin.shopLogo = shopLogo;
-  if (country !== undefined) admin.country = country;
-  if (state !== undefined) admin.state = state;
-  if (district !== undefined) admin.district = district;
-  if (city !== undefined) admin.city = city;
-  if (address !== undefined) admin.address = address;
+  shop.owner.name = name || shop.owner.name;
+  shop.owner.email = email || shop.owner.email;
+  shop.owner.phone = phone || shop.owner.phone;
+  if (shopName !== undefined) shop.shopName = shopName;
+  if (shopLogo !== undefined) shop.shopLogo = shopLogo;
+  if (country !== undefined) shop.location.country = country;
+  if (state !== undefined) shop.location.state = state;
+  if (district !== undefined) shop.location.district = district;
+  if (city !== undefined) shop.location.city = city;
+  if (address !== undefined) shop.location.address = address;
 
-  await admin.save();
+  await shop.save();
 
-  const updatedAdmin = await User.findById(admin._id).select("-password -refreshToken");
+  const updatedShop = await Shop.findById(shop._id).select("-owner.password -owner.refreshToken");
 
   res.status(200).json(
-    new ApiResponse(200, updatedAdmin, "Profile updated successfully")
+    new ApiResponse(200, updatedShop, "Profile updated successfully")
   );
 });
 
@@ -283,15 +299,15 @@ import sendEmail from "../utils/sendEmail.js";
 // @route   POST /api/v1/admin/request-password-reset
 // @access  Private/Admin
 export const requestPasswordReset = asyncHandler(async (req, res) => {
-  const admin = await User.findById(req.user._id);
-  if (!admin) {
-    throw new ApiError(404, "User not found");
+  const shop = await Shop.findById(req.user._id);
+  if (!shop) {
+    throw new ApiError(404, "Shop not found");
   }
 
   // Get reset token
-  const resetToken = admin.getResetPasswordToken();
+  const resetToken = shop.getResetPasswordToken();
 
-  await admin.save({ validateBeforeSave: false });
+  await shop.save({ validateBeforeSave: false });
 
   // Create reset url
   const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/admin/reset-password/${resetToken}`;
@@ -300,7 +316,7 @@ export const requestPasswordReset = asyncHandler(async (req, res) => {
 
   try {
     await sendEmail({
-      email: admin.email,
+      email: shop.owner.email,
       subject: 'Password reset token',
       message,
     });
@@ -310,10 +326,10 @@ export const requestPasswordReset = asyncHandler(async (req, res) => {
     );
   } catch (err) {
     console.error(err);
-    admin.resetPasswordToken = undefined;
-    admin.resetPasswordExpire = undefined;
+    shop.owner.resetPasswordToken = undefined;
+    shop.owner.resetPasswordExpire = undefined;
 
-    await admin.save({ validateBeforeSave: false });
+    await shop.save({ validateBeforeSave: false });
 
     throw new ApiError(500, "Email could not be sent");
   }
@@ -329,22 +345,111 @@ export const resetPassword = asyncHandler(async (req, res) => {
     .update(req.params.token)
     .digest('hex');
 
-  const admin = await User.findOne({
-    resetPasswordToken,
-    resetPasswordExpire: { $gt: Date.now() },
+  const shop = await Shop.findOne({
+    "owner.resetPasswordToken": resetPasswordToken,
+    "owner.resetPasswordExpire": { $gt: Date.now() },
   });
 
-  if (!admin) {
+  if (!shop) {
     throw new ApiError(400, "Invalid token");
   }
 
   // Set new password
-  admin.password = req.body.password;
-  admin.resetPasswordToken = undefined;
-  admin.resetPasswordExpire = undefined;
-  await admin.save();
+  shop.owner.password = req.body.password;
+  shop.owner.resetPasswordToken = undefined;
+  shop.owner.resetPasswordExpire = undefined;
+  await shop.save();
 
   res.status(200).json(
     new ApiResponse(200, {}, "Password reset success")
+  );
+});
+
+// @desc    Get stats for a specific barber (replaces barber dashboard)
+// @route   GET /api/v1/admin/barbers/:barberId/stats
+// @access  Private/Admin
+export const getBarberStats = asyncHandler(async (req, res) => {
+  const { barberId } = req.params;
+
+  const barber = await Barber.findOne({ _id: barberId, shopId: req.user._id });
+  if (!barber) {
+    throw new ApiError(404, "Barber not found");
+  }
+
+  // Today's range
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
+  const todayAppointments = await Appointment.countDocuments({
+    barber: barberId,
+    appointmentDate: { $gte: todayStart, $lte: todayEnd },
+    status: { $ne: "cancelled" },
+  });
+
+  const pendingAppointments = await Appointment.countDocuments({
+    barber: barberId,
+    status: "pending",
+  });
+
+  const completedAppointments = await Appointment.countDocuments({
+    barber: barberId,
+    status: "completed",
+  });
+
+  const totalAppointments = await Appointment.countDocuments({
+    barber: barberId,
+  });
+
+  const cancelledAppointments = await Appointment.countDocuments({
+    barber: barberId,
+    status: "cancelled",
+  });
+
+  const revenueResult = await Appointment.aggregate([
+    {
+      $match: {
+        barber: barber._id,
+        paymentStatus: "paid",
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalRevenue: { $sum: "$totalPrice" },
+      },
+    },
+  ]);
+
+  const todayRevenueResult = await Appointment.aggregate([
+    {
+      $match: {
+        barber: barber._id,
+        paymentStatus: "paid",
+        appointmentDate: { $gte: todayStart, $lte: todayEnd },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        revenue: { $sum: "$totalPrice" },
+      },
+    },
+  ]);
+
+  res.status(200).json(
+    new ApiResponse(200, {
+      barber,
+      stats: {
+        todayAppointments,
+        pendingAppointments,
+        completedAppointments,
+        totalAppointments,
+        cancelledAppointments,
+        totalRevenue: revenueResult[0]?.totalRevenue || 0,
+        todayRevenue: todayRevenueResult[0]?.revenue || 0,
+      },
+    }, "Barber stats fetched successfully")
   );
 });

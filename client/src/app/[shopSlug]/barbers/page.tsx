@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Star, Clock } from 'lucide-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 
 
 interface Barber {
@@ -18,6 +18,7 @@ interface Barber {
   workingDays: string[];
   isAvailable: boolean;
   avatar?: string;
+  portfolioImages?: string[];
 }
 
 const FALLBACK_BARBERS: Barber[] = [
@@ -29,6 +30,7 @@ const FALLBACK_BARBERS: Barber[] = [
 
 const Barbers: React.FC = () => {
   const { shopSlug } = useParams() as any;
+  const router = useRouter();
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,9 +39,9 @@ const Barbers: React.FC = () => {
       try {
         const res = await axios.get(`/barbers?shopSlug=${shopSlug || ''}`);
         const data = res.data?.data || res.data?.barbers || res.data || [];
-        setBarbers(Array.isArray(data) && data.length > 0 ? data : FALLBACK_BARBERS);
+        setBarbers(Array.isArray(data) ? data : []);
       } catch {
-        setBarbers(FALLBACK_BARBERS);
+        setBarbers([]);
       } finally {
         setLoading(false);
       }
@@ -72,7 +74,7 @@ const Barbers: React.FC = () => {
             <Link href={`/${shopSlug || ''}/barbers/${barber._id}`} key={barber._id} className="card overflow-hidden flex flex-col group cursor-pointer hover:-translate-y-2 transition-all duration-300" style={{ animationDelay: `${i * 100}ms` }}>
               <div className="relative w-full aspect-square bg-bgSecondary overflow-hidden group">
                 <img
-                  src={barber.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(barber.name)}&background=1c1c1c&color=00e5ff&size=160&font-size=0.4&bold=true`}
+                  src={barber.avatar || (barber.portfolioImages && barber.portfolioImages[0]) || `https://ui-avatars.com/api/?name=${encodeURIComponent(barber.name)}&background=1c1c1c&color=00e5ff&size=160&font-size=0.4&bold=true`}
                   alt={barber.name}
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                 />
@@ -103,13 +105,16 @@ const Barbers: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-1.5 text-[0.85rem] text-gray-400">
                     <Clock size={14} className="text-accent" />
-                    <span>{barber.startTime} – {barber.endTime}</span>
+                    <span>Flexible Hours</span>
                   </div>
                 </div>
 
-                <Link href="/book" className="btn btn-outline btn-sm btn-full mt-6">
+                <button 
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/${shopSlug || ''}/book`); }} 
+                  className="btn btn-outline btn-sm btn-full mt-6"
+                >
                   Book with {barber.name.split(' ')[0]}
-                </Link>
+                </button>
               </div>
             </Link>
           ))}

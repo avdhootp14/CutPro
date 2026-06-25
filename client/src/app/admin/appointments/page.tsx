@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { useSocket } from '@/context/SocketContext';
 import { Calendar, Search } from 'lucide-react';
 
 interface Appointment {
@@ -35,6 +36,27 @@ const AdminAppointments: React.FC = () => {
     fetchAppointments();
   }, []);
 
+  const { socket } = useSocket();
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleUpdate = () => {
+      // Refresh appointments
+      axios.get('/admin/appointments', { withCredentials: true })
+        .then(({ data }) => setAppointments(data.data))
+        .catch(err => console.error('Failed to refresh appointments', err));
+    };
+
+    socket.on('appointment_created', handleUpdate);
+    socket.on('appointment_updated', handleUpdate);
+
+    return () => {
+      socket.off('appointment_created', handleUpdate);
+      socket.off('appointment_updated', handleUpdate);
+    };
+  }, [socket]);
+
   const filtered = appointments.filter(app => {
     const matchesFilter = filter === 'all' || app.status === filter;
     const matchesSearch = search === '' || 
@@ -49,6 +71,16 @@ const AdminAppointments: React.FC = () => {
     confirmed: appointments.filter(a => a.status === 'confirmed').length,
     completed: appointments.filter(a => a.status === 'completed').length,
     cancelled: appointments.filter(a => a.status === 'cancelled').length,
+  };
+
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    try {
+      await axios.patch(`/admin/appointments/${id}/status`, { status: newStatus }, { withCredentials: true });
+      setAppointments(prev => prev.map(app => app._id === id ? { ...app, status: newStatus } : app));
+    } catch (error) {
+      console.error('Failed to update status', error);
+      alert('Failed to update status. Please try again.');
+    }
   };
 
   return (
@@ -116,13 +148,20 @@ const AdminAppointments: React.FC = () => {
                     <td className="py-3.5 px-5 text-gray-400 max-w-[200px] truncate">{app.services?.map(s => s.name).join(', ')}</td>
                     <td className="py-3.5 px-5 text-white font-medium">₹{app.totalPrice}</td>
                     <td className="py-3.5 px-5">
-                      <span className={`px-2 py-0.5 text-[0.7rem] font-bold uppercase tracking-wider rounded ${
-                        app.status === 'confirmed' || app.status === 'completed' ? 'bg-green-500/10 text-green-400' : 
-                        app.status === 'pending' ? 'bg-yellow-500/10 text-yellow-400' : 
-                        'bg-red-500/10 text-red-400'
-                      }`}>
-                        {app.status}
-                      </span>
+                      <select
+                        value={app.status}
+                        onChange={(e) => handleStatusChange(app._id, e.target.value)}
+                        className={`px-2 py-1 text-[0.7rem] font-bold uppercase tracking-wider rounded border outline-none cursor-pointer ${
+                          app.status === 'confirmed' || app.status === 'completed' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 
+                          app.status === 'pending' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' : 
+                          'bg-red-500/10 text-red-400 border-red-500/20'
+                        }`}
+                      >
+                        <option value="pending" className="bg-[#0B0E14] text-white">PENDING</option>
+                        <option value="confirmed" className="bg-[#0B0E14] text-white">CONFIRMED</option>
+                        <option value="completed" className="bg-[#0B0E14] text-white">COMPLETED</option>
+                        <option value="cancelled" className="bg-[#0B0E14] text-white">CANCELLED</option>
+                      </select>
                     </td>
                   </tr>
                 ))}

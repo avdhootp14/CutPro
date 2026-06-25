@@ -4,19 +4,19 @@ const appointmentSchema = new mongoose.Schema(
   {
     customer: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Customer",
       required: true,
     },
 
     barber: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Barber",
       required: true,
     },
 
-    shopOwner: {
+    shopId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Shop",
       required: true,
     },
 
@@ -100,14 +100,14 @@ const appointmentSchema = new mongoose.Schema(
       default: "",
     },
     invoiceNumber: {
-  type: String,
-  default: "",
-},
+      type: String,
+      default: "",
+    },
 
-invoiceGeneratedAt: {
-  type: Date,
-  default: null,
-},
+    invoiceGeneratedAt: {
+      type: Date,
+      default: null,
+    },
 
     /* -------------------------------------------------------------------------- */
 

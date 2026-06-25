@@ -1,9 +1,10 @@
-import User from "../models/User.js";
+import Customer from "../models/Customer.js";
 import Appointment from "../models/Appointment.js";
 
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import ApiError from "../utils/ApiError.js";
+import sendEmail from "../utils/sendEmail.js";
 
 /* -------------------------------------------------------------------------- */
 /*                          Customer Dashboard                                */
@@ -11,13 +12,12 @@ import ApiError from "../utils/ApiError.js";
 
 export const getDashboard = asyncHandler(async (req, res) => {
   // Get logged-in customer
-  const customer = await User.findById(req.user._id).select(
+  const customer = await Customer.findById(req.user._id).select(
   `
   name
   email
   phone
   avatar
-  role
   isVerified
   createdAt
   updatedAt
@@ -70,7 +70,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
     new ApiResponse(
       200,
       {
-        profile: customer,
+        profile: { ...customer.toObject(), role: "customer" },
         stats: {
           totalAppointments,
           completedAppointments,
@@ -87,18 +87,13 @@ export const getDashboard = asyncHandler(async (req, res) => {
 /*                           Get Customer Profile                             */
 /* -------------------------------------------------------------------------- */
 
-/* -------------------------------------------------------------------------- */
-/*                           Get Customer Profile                             */
-/* -------------------------------------------------------------------------- */
-
 export const getProfile = asyncHandler(async (req, res) => {
-  const customer = await User.findById(req.user._id).select(
+  const customer = await Customer.findById(req.user._id).select(
     `
     name
     email
     phone
     avatar
-    role
     isVerified
     createdAt
     updatedAt
@@ -112,7 +107,7 @@ export const getProfile = asyncHandler(async (req, res) => {
   return res.status(200).json(
     new ApiResponse(
       200,
-      customer,
+      { ...customer.toObject(), role: "customer" },
       "Customer profile fetched successfully"
     )
   );
@@ -122,9 +117,9 @@ export const getProfile = asyncHandler(async (req, res) => {
 /* -------------------------------------------------------------------------- */
 
 export const updateProfile = asyncHandler(async (req, res) => {
-  const { name, phone, avatar } = req.body;
+  const { name, phone, avatar, email } = req.body;
 
-  const customer = await User.findById(req.user._id);
+  const customer = await Customer.findById(req.user._id);
 
   if (!customer) {
     throw new ApiError(404, "Customer not found");
@@ -143,9 +138,42 @@ export const updateProfile = asyncHandler(async (req, res) => {
     customer.avatar = avatar;
   }
 
+  if (email !== undefined && email !== customer.email) {
+    const existingCustomer = await Customer.findOne({ email });
+    if (existingCustomer) {
+      throw new ApiError(400, "Email is already in use by another account");
+    }
+
+    // Also check shop owners
+    const Shop = (await import("../models/Shop.js")).default;
+    const existingShop = await Shop.findOne({ "owner.email": email });
+    if (existingShop) {
+      throw new ApiError(400, "Email is already in use by another account");
+    }
+
+    customer.email = email;
+    customer.isVerified = false;
+    
+    const verificationToken = customer.getVerificationToken();
+    const verificationUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
+    const message = `You recently changed your email address. Please verify your new email by clicking the link below:\n\n${verificationUrl}`;
+
+    try {
+      await sendEmail({
+        email: customer.email,
+        subject: "Verify Your New Email - CutPro",
+        message,
+      });
+    } catch (error) {
+      customer.emailVerificationToken = undefined;
+      customer.emailVerificationExpire = undefined;
+      console.error("Email could not be sent:", error);
+    }
+  }
+
   await customer.save();
 
-  const updatedCustomer = await User.findById(
+  const updatedCustomer = await Customer.findById(
     customer._id
   ).select("-password -refreshToken");
 
@@ -163,8 +191,6 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
 export const getUpcomingAppointments = asyncHandler(
   async (req, res) => {
-    const now = new Date();
-
     const appointments = await Appointment.find({
   customer: req.user._id,
   status: "pending",

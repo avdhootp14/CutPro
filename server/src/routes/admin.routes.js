@@ -10,7 +10,9 @@ import {
   deleteService,
   updateProfile,
   requestPasswordReset,
-  resetPassword
+  resetPassword,
+  updateAppointmentStatus,
+  getBarberStats
 } from "../controllers/admin.controller.js";
 import verifyJWT, { isAdmin } from "../middleware/auth.middleware.js";
 
@@ -27,10 +29,12 @@ router.route("/stats").get(getDashboardStats);
 
 // Appointments
 router.route("/appointments").get(getAllAppointments);
+router.route("/appointments/:id/status").patch(updateAppointmentStatus);
 
 // Barbers
 router.route("/barbers").get(getAllBarbers).post(addBarber);
 router.route("/barbers/:id").put(updateBarber);
+router.route("/barbers/:barberId/stats").get(getBarberStats);
 
 // Services
 router.route("/services").post(addService);

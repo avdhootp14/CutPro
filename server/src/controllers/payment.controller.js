@@ -305,11 +305,8 @@ export const markPaid = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Appointment not found");
   }
 
-  // Only admin or assigned barber can mark as paid
-  if (
-    req.user.role !== "admin" &&
-    appointment.barber.toString() !== req.user._id.toString()
-  ) {
+  // Only admin can mark as paid
+  if (req.user.role !== "admin") {
     throw new ApiError(
       403,
       "You are not allowed to mark this payment"
@@ -383,10 +380,7 @@ export const getPaymentHistory = asyncHandler(async (req, res) => {
     filter.customer = req.user._id;
   }
 
-  // Barber -> only their appointments
-  else if (req.user.role === "barber") {
-    filter.barber = req.user._id;
-  }
+  // Admin -> all payments (no filter needed)
 
   // Exclude cancelled appointments
   filter.status = {
@@ -580,16 +574,7 @@ export const getInvoice = asyncHandler(async (req, res) => {
     );
   }
 
-  // Barber can only view their own appointment invoice
-  if (
-    req.user.role === "barber" &&
-    appointment.barber._id.toString() !== req.user._id.toString()
-  ) {
-    throw new ApiError(
-      403,
-      "You are not allowed to view this invoice"
-    );
-  }
+  // Admin can view any invoice
 
   const invoice = {
     invoiceNumber: appointment.invoiceNumber || null,

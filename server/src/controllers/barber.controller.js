@@ -1,4 +1,5 @@
-import User from "../models/User.js";
+import Barber from "../models/Barber.js";
+import Shop from "../models/Shop.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
@@ -10,45 +11,41 @@ import ApiResponse from "../utils/ApiResponse.js";
 export const createBarber = asyncHandler(async (req, res) => {
   const {
     name,
-    email,
     phone,
-    password,
     experience,
     specialization,
     services,
-    workingDays,
-    startTime,
-    endTime,
+    workingHours,
+    bio,
+    portfolioImages,
+    avatar,
+    shopId,
   } = req.body;
 
-  if (!name || !email || !phone || !password) {
-    throw new ApiError(400, "Required fields are missing");
+  if (!name || !shopId) {
+    throw new ApiError(400, "Barber name and shopId are required");
   }
 
-  const existingUser = await User.findOne({
-    $or: [{ email }, { phone }],
-  });
-
-  if (existingUser) {
-    throw new ApiError(409, "Barber already exists");
+  // Verify the shop exists
+  const shop = await Shop.findById(shopId);
+  if (!shop) {
+    throw new ApiError(404, "Shop not found");
   }
 
-  const barber = await User.create({
+  const barber = await Barber.create({
+    shopId,
     name,
-    email,
     phone,
-    password,
-    role: "barber",
     experience,
     specialization,
     services,
-    workingDays,
-    startTime,
-    endTime,
+    workingHours,
+    bio,
+    portfolioImages,
+    avatar,
   });
 
-  const createdBarber = await User.findById(barber._id)
-    .select("-password -refreshToken")
+  const createdBarber = await Barber.findById(barber._id)
     .populate("services");
 
   return res.status(201).json(
@@ -65,29 +62,22 @@ export const createBarber = asyncHandler(async (req, res) => {
 /* -------------------------------------------------------------------------- */
 
 export const getAllBarbers = asyncHandler(async (req, res) => {
-  const { adminEmail, shopSlug } = req.query;
+  const { shopSlug } = req.query;
 
   let query = {
-    role: "barber",
     isActive: true,
+    deletedAt: null,
   };
 
   if (shopSlug) {
-    const adminUser = await User.findOne({ shopSlug, role: 'admin' });
-    if (!adminUser) {
+    const shop = await Shop.findOne({ shopSlug });
+    if (!shop) {
       return res.status(200).json(new ApiResponse(200, [], "No shop found for this slug"));
     }
-    query.shopOwner = adminUser._id;
-  } else if (adminEmail) {
-    const adminUser = await User.findOne({ email: adminEmail, role: 'admin' });
-    if (!adminUser) {
-      return res.status(200).json(new ApiResponse(200, [], "No shop found for this email"));
-    }
-    query.shopOwner = adminUser._id;
+    query.shopId = shop._id;
   }
 
-  const barbers = await User.find(query)
-    .select("-password -refreshToken")
+  const barbers = await Barber.find(query)
     .populate("services")
     .sort({ createdAt: -1 });
 
@@ -105,11 +95,7 @@ export const getAllBarbers = asyncHandler(async (req, res) => {
 /* -------------------------------------------------------------------------- */
 
 export const getBarberById = asyncHandler(async (req, res) => {
-  const barber = await User.findOne({
-    _id: req.params.id,
-    role: "barber",
-  })
-    .select("-password -refreshToken")
+  const barber = await Barber.findById(req.params.id)
     .populate("services");
 
   if (!barber) {
@@ -130,18 +116,14 @@ export const getBarberById = asyncHandler(async (req, res) => {
 /* -------------------------------------------------------------------------- */
 
 export const updateBarber = asyncHandler(async (req, res) => {
-  const barber = await User.findOneAndUpdate(
-    {
-      _id: req.params.id,
-      role: "barber",
-    },
+  const barber = await Barber.findByIdAndUpdate(
+    req.params.id,
     req.body,
     {
       new: true,
       runValidators: true,
     }
   )
-    .select("-password -refreshToken")
     .populate("services");
 
   if (!barber) {
@@ -162,10 +144,7 @@ export const updateBarber = asyncHandler(async (req, res) => {
 /* -------------------------------------------------------------------------- */
 
 export const toggleAvailability = asyncHandler(async (req, res) => {
-  const barber = await User.findOne({
-    _id: req.params.id,
-    role: "barber",
-  });
+  const barber = await Barber.findById(req.params.id);
 
   if (!barber) {
     throw new ApiError(404, "Barber not found");
@@ -191,13 +170,11 @@ export const toggleAvailability = asyncHandler(async (req, res) => {
 /* -------------------------------------------------------------------------- */
 
 export const deleteBarber = asyncHandler(async (req, res) => {
-  const barber = await User.findOneAndUpdate(
-    {
-      _id: req.params.id,
-      role: "barber",
-    },
+  const barber = await Barber.findByIdAndUpdate(
+    req.params.id,
     {
       isActive: false,
+      deletedAt: new Date(),
     },
     {
       new: true,

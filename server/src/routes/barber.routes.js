@@ -11,7 +11,6 @@ import {
 
 import verifyJWT from "../middleware/verifyJWT.js";
 import verifyAdmin from "../middleware/verifyAdmin.js";
-import verifyBarber from "../middleware/verifyBarber.js";
 
 const router = express.Router();
 
@@ -51,11 +50,11 @@ router.delete(
 
 /* -------------------------- Barber Routes -------------------------- */
 
-// Toggle Availability
+// Toggle Availability (Admin only now)
 router.patch(
   "/:id/toggle-availability",
   verifyJWT,
-  verifyBarber,
+  verifyAdmin,
   toggleAvailability
 );
 

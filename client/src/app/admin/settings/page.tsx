@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import AdminLayout from '@/components/admin/AdminLayout';
 import { User, Lock, Mail, Phone, Check, AlertCircle } from 'lucide-react';
 import { Country, State, City } from 'country-state-city';
+import indianDistrictsData from '@/data/indianDistricts.json';
 
 const AdminSettings: React.FC = () => {
   const { user, setUser } = useAuth();
@@ -46,6 +47,45 @@ const AdminSettings: React.FC = () => {
       });
     }
   }, [user]);
+
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    setUploadingLogo(true);
+    try {
+      const { data } = await axios.post('/upload/image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setProfileData({...profileData, shopLogo: data.data.url});
+    } catch (error) {
+      console.error('Failed to upload logo', error);
+      alert('Failed to upload logo. Make sure Cloudinary keys are configured in backend.');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  // Extract districts if Country is India
+  const availableDistricts = React.useMemo(() => {
+    if (profileData.country === 'IN' && profileData.state) {
+      const stateObj = State.getStateByCodeAndCountry(profileData.state, 'IN');
+      if (stateObj) {
+        // Find matching state in our JSON
+        const matchedState = indianDistrictsData.states.find(
+          s => s.state.toLowerCase() === stateObj.name.toLowerCase() || 
+               s.state.toLowerCase().includes(stateObj.name.toLowerCase()) ||
+               stateObj.name.toLowerCase().includes(s.state.toLowerCase())
+        );
+        if (matchedState) return matchedState.districts;
+      }
+    }
+    return [];
+  }, [profileData.country, profileData.state]);
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,14 +212,20 @@ const AdminSettings: React.FC = () => {
 
             <div>
               <label className="text-gray-400 text-[0.75rem] font-medium uppercase tracking-wider block mb-1.5">Shop Logo URL (Optional)</label>
-              <input
-                type="text"
-                placeholder="https://example.com/logo.png"
-                value={profileData.shopLogo}
-                onChange={e => setProfileData({...profileData, shopLogo: e.target.value})}
-                className="w-full bg-white/[0.04] border border-white/[0.08] text-white py-2.5 px-4 rounded-lg text-[0.9rem] outline-none focus:border-accent/40 transition-colors"
-              />
-              <p className="text-gray-500 text-[0.7rem] mt-1.5">Paste a direct image link (Imgur, Cloudinary, etc.)</p>
+              <div className="flex gap-3 items-center">
+                <input
+                  type="text"
+                  placeholder="https://example.com/logo.png"
+                  value={profileData.shopLogo}
+                  onChange={e => setProfileData({...profileData, shopLogo: e.target.value})}
+                  className="flex-1 bg-white/[0.04] border border-white/[0.08] text-white py-2.5 px-4 rounded-lg text-[0.9rem] outline-none focus:border-accent/40 transition-colors"
+                />
+                <label className={`shrink-0 cursor-pointer px-4 py-2.5 rounded-lg text-[0.85rem] font-medium border transition-all ${uploadingLogo ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-accent/10 text-accent border-accent/20 hover:bg-accent/20'}`}>
+                  {uploadingLogo ? 'Uploading...' : 'Upload Image'}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploadingLogo} />
+                </label>
+              </div>
+              <p className="text-gray-500 text-[0.7rem] mt-1.5">Upload from device or paste a direct image link.</p>
             </div>
 
             <div>
@@ -231,26 +277,51 @@ const AdminSettings: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="text-gray-400 text-[0.75rem] font-medium uppercase tracking-wider block mb-1.5">City</label>
-                <select
-                  value={profileData.city}
-                  onChange={e => setProfileData({...profileData, city: e.target.value})}
-                  disabled={!profileData.state}
-                  className="w-full bg-white/[0.04] border border-white/[0.08] text-white py-2.5 px-4 rounded-lg text-[0.9rem] outline-none focus:border-accent/40 cursor-pointer appearance-none disabled:opacity-50"
-                >
-                  <option value="" className="bg-[#111721]">Select City</option>
-                  {profileData.country && profileData.state && City.getCitiesOfState(profileData.country, profileData.state).map(c => (
-                    <option key={c.name} value={c.name} className="bg-[#111721]">{c.name}</option>
-                  ))}
-                </select>
+                <label className="text-gray-400 text-[0.75rem] font-medium uppercase tracking-wider block mb-1.5">District</label>
+                {profileData.country === 'IN' && availableDistricts.length > 0 ? (
+                  <select
+                    required
+                    value={profileData.district}
+                    onChange={e => setProfileData({...profileData, district: e.target.value})}
+                    className="w-full bg-white/[0.04] border border-white/[0.08] text-white py-2.5 px-4 rounded-lg text-[0.9rem] outline-none focus:border-accent/40 cursor-pointer appearance-none"
+                  >
+                    <option value="" className="bg-[#111721]">Select District</option>
+                    {availableDistricts.map(d => (
+                      <option key={d} value={d} className="bg-[#111721]">{d}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text" placeholder="e.g. Pune"
+                    required
+                    value={profileData.district} onChange={e => setProfileData({...profileData, district: e.target.value})}
+                    className="w-full bg-white/[0.04] border border-white/[0.08] text-white py-2.5 px-4 rounded-lg text-[0.9rem] outline-none focus:border-accent/40"
+                  />
+                )}
               </div>
               <div>
-                <label className="text-gray-400 text-[0.75rem] font-medium uppercase tracking-wider block mb-1.5">District (Optional)</label>
-                <input
-                  type="text" placeholder="e.g. Pune"
-                  value={profileData.district} onChange={e => setProfileData({...profileData, district: e.target.value})}
-                  className="w-full bg-white/[0.04] border border-white/[0.08] text-white py-2.5 px-4 rounded-lg text-[0.9rem] outline-none focus:border-accent/40"
-                />
+                <label className="text-gray-400 text-[0.75rem] font-medium uppercase tracking-wider block mb-1.5">City / Town / Village</label>
+                {profileData.country === 'IN' ? (
+                  <input
+                    type="text" placeholder="e.g. Malkapur"
+                    required
+                    value={profileData.city} onChange={e => setProfileData({...profileData, city: e.target.value})}
+                    className="w-full bg-white/[0.04] border border-white/[0.08] text-white py-2.5 px-4 rounded-lg text-[0.9rem] outline-none focus:border-accent/40"
+                  />
+                ) : (
+                  <select
+                    required
+                    value={profileData.city}
+                    onChange={e => setProfileData({...profileData, city: e.target.value})}
+                    disabled={!profileData.state}
+                    className="w-full bg-white/[0.04] border border-white/[0.08] text-white py-2.5 px-4 rounded-lg text-[0.9rem] outline-none focus:border-accent/40 cursor-pointer appearance-none disabled:opacity-50"
+                  >
+                    <option value="" className="bg-[#111721]">Select City</option>
+                    {profileData.country && profileData.state && City.getCitiesOfState(profileData.country, profileData.state).map(c => (
+                      <option key={c.name} value={c.name} className="bg-[#111721]">{c.name}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
 

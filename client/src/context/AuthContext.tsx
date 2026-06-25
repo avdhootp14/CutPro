@@ -7,7 +7,7 @@ export interface User {
   name: string;
   email: string;
   phone?: string;
-  role: 'customer' | 'admin' | 'barber';
+  role: 'customer' | 'admin';
   createdAt?: string;
   shopName?: string;
   shopLogo?: string;
@@ -16,6 +16,7 @@ export interface User {
   district?: string;
   city?: string;
   address?: string;
+  isVerified?: boolean;
 }
 
 interface AuthContextType {
@@ -45,7 +46,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   // Setup Axios defaults
-  axios.defaults.baseURL = 'http://localhost:5000/api/v1';
+  let apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+  
+  // Dynamic fallback for local network testing (e.g. mobile devices)
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    apiUrl = `http://${window.location.hostname}:5000/api/v1`;
+  }
+  
+  axios.defaults.baseURL = apiUrl;
   axios.defaults.withCredentials = true;
 
   // Check if user is logged in on mount

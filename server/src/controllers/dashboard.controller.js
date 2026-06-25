@@ -1,5 +1,6 @@
 import Appointment from "../models/Appointment.js";
-import User from "../models/User.js";
+import Barber from "../models/Barber.js";
+import Customer from "../models/Customer.js";
 import Service from "../models/Service.js";
 
 import asyncHandler from "../utils/asyncHandler.js";
@@ -13,13 +14,10 @@ import Queue from "../models/Queue.js";
 
 export const getDashboardStats = asyncHandler(async (req, res) => {
   // Total Customers
-  const totalCustomers = await User.countDocuments({
-    role: "customer",
-  });
+  const totalCustomers = await Customer.countDocuments();
 
   // Total Barbers
-  const totalBarbers = await User.countDocuments({
-    role: "barber",
+  const totalBarbers = await Barber.countDocuments({
     isActive: true,
   });
 
@@ -239,7 +237,7 @@ export const getTopBarbers = asyncHandler(async (req, res) => {
     },
     {
       $lookup: {
-        from: "users",
+        from: "barbers",
         localField: "_id",
         foreignField: "_id",
         as: "barber",
@@ -312,13 +310,9 @@ export const getDashboardOverview = asyncHandler(async (req, res) => {
   }
 
   // Users
-  const totalCustomers = await User.countDocuments({
-    role: "customer",
-    isActive: true,
-  });
+  const totalCustomers = await Customer.countDocuments();
 
-  const totalBarbers = await User.countDocuments({
-    role: "barber",
+  const totalBarbers = await Barber.countDocuments({
     isActive: true,
   });
 

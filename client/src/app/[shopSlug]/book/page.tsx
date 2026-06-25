@@ -12,6 +12,8 @@ interface Service {
   name: string;
   price: number;
   duration: number;
+  hasOffer?: boolean;
+  discountPrice?: number;
 }
 
 interface Barber {
@@ -62,9 +64,12 @@ const Book: React.FC = () => {
         ]);
         const sData = sRes.data?.data || sRes.data?.services || sRes.data || [];
         const bData = bRes.data?.data || bRes.data?.barbers || bRes.data || [];
-        if (sData.length > 0) setServices(sData);
-        if (bData.length > 0) setBarbers(bData);
-      } catch { /* Use mock data */ }
+        setServices(sData);
+        setBarbers(bData);
+      } catch { 
+        setServices([]);
+        setBarbers([]);
+      }
     };
     fetchData();
   }, [shopSlug]);
@@ -98,13 +103,20 @@ const Book: React.FC = () => {
     );
   };
 
-  const totalPrice = selectedServices.reduce((sum, s) => sum + s.price, 0);
+  const getPrice = (s: Service) => s.hasOffer && s.discountPrice ? s.discountPrice : s.price;
+  const totalPrice = selectedServices.reduce((sum, s) => sum + getPrice(s), 0);
   const totalDuration = selectedServices.reduce((sum, s) => sum + s.duration, 0);
 
   const handleBook = async () => {
     if (!user) {
       alert("Please log in to book an appointment.");
       navigate.push("/login");
+      return;
+    }
+
+    if (!user.isVerified) {
+      alert("Please verify your email address before booking an appointment. You can do this from your dashboard.");
+      navigate.push("/dashboard");
       return;
     }
 
@@ -121,7 +133,7 @@ const Book: React.FC = () => {
         paymentMethod
       };
       
-      const res = await axios.post('/appointments/book', appointmentData);
+      const res = await axios.post('/appointments', appointmentData);
       const appointment = res.data.data;
 
       // 2. Handle Payment
@@ -236,7 +248,14 @@ const Book: React.FC = () => {
                       <strong className="block text-[1.05rem] font-medium text-white mb-1">{service.name}</strong>
                       <div className="text-gray-400 text-[0.85rem]">{service.duration} min</div>
                     </div>
-                    <span className="text-accent font-bold text-[1.1rem]">₹{service.price}</span>
+                    {service.hasOffer && service.discountPrice ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500 line-through text-[0.9rem]">₹{service.price}</span>
+                        <span className="text-accent font-bold text-[1.1rem]">₹{service.discountPrice}</span>
+                      </div>
+                    ) : (
+                      <span className="text-accent font-bold text-[1.1rem]">₹{service.price}</span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -382,8 +401,12 @@ const Book: React.FC = () => {
 
               <div className="flex gap-4 mt-8">
                 <button className="btn btn-ghost flex-1" onClick={() => setStep(2)}>Back</button>
-                <button className="btn btn-accent flex-[2]" onClick={handleBook} disabled={bookingLoading}>
-                  {bookingLoading ? 'Processing...' : <><Check size={18} /> Confirm & Book</>}
+                <button 
+                  className="btn btn-accent flex-[2]" 
+                  onClick={handleBook} 
+                  disabled={bookingLoading || (user && !user.isVerified)}
+                >
+                  {bookingLoading ? 'Processing...' : (user && !user.isVerified) ? 'Email Not Verified' : <><Check size={18} /> Confirm & Book</>}
                 </button>
               </div>
             </div>

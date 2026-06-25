@@ -34,6 +34,14 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  React.useEffect(() => {
+    if (!user || user.role !== 'admin') {
+      navigate.push('/admin/login');
+    }
+  }, [user, navigate]);
+
+  if (!user || user.role !== 'admin') return null;
+
   const handleLogout = async () => {
     await logout();
     navigate.push('/admin/login');

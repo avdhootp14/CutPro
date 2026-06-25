@@ -1,5 +1,5 @@
 import Review from "../models/Review.js";
-import User from "../models/User.js";
+import Barber from "../models/Barber.js";
 
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
@@ -40,9 +40,9 @@ export const createReview = asyncHandler(async (req, res) => {
     );
   }
 
-  const barber = await User.findById(barberId);
+  const barber = await Barber.findById(barberId);
 
-  if (!barber || barber.role !== "barber") {
+  if (!barber) {
     throw new ApiError(404, "Barber not found");
   }
 
@@ -190,7 +190,7 @@ export const approveReview = asyncHandler(async (req, res) => {
     reviews.reduce((sum, item) => sum + item.rating, 0) /
     totalReviews;
 
-  await User.findByIdAndUpdate(review.barber, {
+  await Barber.findByIdAndUpdate(review.barber, {
     rating: Number(averageRating.toFixed(1)),
     totalReviews,
   });

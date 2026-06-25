@@ -1,6 +1,7 @@
 
 import Appointment from "../models/Appointment.js";
-import User from "../models/User.js";
+import Barber from "../models/Barber.js";
+import Customer from "../models/Customer.js";
 import Service from "../models/Service.js";
 
 import asyncHandler from "../utils/asyncHandler.js";
@@ -47,17 +48,24 @@ export const createAppointment = asyncHandler(async (req, res) => {
     );
   }
 
+  // SECURITY: Require email verification
+  if (!req.user.isVerified) {
+    throw new ApiError(
+      403,
+      "Please verify your email address before booking an appointment"
+    );
+  }
+
   // Check Customer
-  const customerExists = await User.findById(customer);
+  const customerExists = await Customer.findById(customer);
 
   if (!customerExists) {
     throw new ApiError(404, "Customer not found");
   }
 
   // Check Barber
-  const barberUser = await User.findOne({
+  const barberUser = await Barber.findOne({
     _id: barber,
-    role: "barber",
     isActive: true,
   });
 
@@ -91,7 +99,8 @@ export const createAppointment = asyncHandler(async (req, res) => {
   let totalDuration = 0;
 
   selectedServices.forEach((service) => {
-    totalPrice += service.price;
+    const finalPrice = service.hasOffer && service.discountPrice ? service.discountPrice : service.price;
+    totalPrice += finalPrice;
     totalDuration += service.duration;
   });
 
@@ -180,6 +189,7 @@ export const createAppointment = asyncHandler(async (req, res) => {
   const appointment = await Appointment.create({
     customer,
     barber,
+    shopId: barberUser.shopId,
     services,
     appointmentDate,
     startTime,
@@ -200,9 +210,15 @@ export const createAppointment = asyncHandler(async (req, res) => {
     )
     .populate(
       "barber",
-      "name email phone avatar experience specialization rating startTime endTime"
+      "name phone avatar experience specialization rating"
     )
     .populate("services");
+
+  // Emit Real-Time Event
+  const io = req.app.get("io");
+  if (io) {
+    io.emit("appointment_created", createdAppointment);
+  }
 
   return res.status(201).json(
     new ApiResponse(
@@ -228,9 +244,9 @@ export const getAvailableSlots = asyncHandler(async (req, res) => {
   }
 
   // Barber
-  const barber = await User.findById(barberId);
+  const barber = await Barber.findById(barberId);
 
-  if (!barber || barber.role !== "barber") {
+  if (!barber) {
     throw new ApiError(404, "Barber not found");
   }
 
@@ -253,14 +269,19 @@ export const getAvailableSlots = asyncHandler(async (req, res) => {
     totalDuration += service.duration;
   });
 
-  // Working Hours
-  const [startHour, startMinute] = barber.startTime
-    .split(":")
-    .map(Number);
+  // Working Hours for the specific day
+  const requestDate = new Date(date);
+  const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const dayName = daysOfWeek[requestDate.getDay()];
+  
+  const daySchedule = barber.workingHours?.find(wh => wh.day === dayName);
 
-  const [endHour, endMinute] = barber.endTime
-    .split(":")
-    .map(Number);
+  if (!daySchedule || !daySchedule.isWorking) {
+    return res.status(200).json(new ApiResponse(200, [], "Barber is not working on this day"));
+  }
+
+  const [startHour, startMinute] = daySchedule.startTime.split(":").map(Number);
+  const [endHour, endMinute] = daySchedule.endTime.split(":").map(Number);
 
   const openingTime = new Date(date);
   openingTime.setHours(startHour, startMinute, 0, 0);
@@ -369,7 +390,7 @@ export const getAllAppointments = asyncHandler(async (req, res) => {
     .populate("customer", "name email phone avatar")
     .populate(
       "barber",
-      "name email phone avatar experience specialization rating startTime endTime"
+      "name phone avatar experience specialization rating"
     )
     .populate("services")
     .sort({
@@ -394,7 +415,7 @@ export const getAppointmentById = asyncHandler(async (req, res) => {
     .populate("customer", "name email phone avatar")
     .populate(
       "barber",
-      "name email phone avatar experience specialization rating startTime endTime"
+      "name phone avatar experience specialization rating"
     )
     .populate("services");
 
@@ -402,12 +423,10 @@ export const getAppointmentById = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Appointment not found");
   }
 
-  // Only the customer who booked it, the assigned barber,
-  // or an admin can view this appointment
+  // Only the customer who booked it or an admin can view this appointment
   if (
     req.user.role !== "admin" &&
-    appointment.customer._id.toString() !== req.user._id.toString() &&
-    appointment.barber._id.toString() !== req.user._id.toString()
+    appointment.customer._id.toString() !== req.user._id.toString()
   ) {
     throw new ApiError(
       403,
@@ -447,7 +466,7 @@ export const getCustomerAppointments = asyncHandler(async (req, res) => {
     .populate("customer", "name email phone avatar")
     .populate(
       "barber",
-      "name avatar experience specialization rating startTime endTime"
+      "name avatar experience specialization rating"
     )
     .populate("services")
     .sort({
@@ -470,11 +489,8 @@ export const getCustomerAppointments = asyncHandler(async (req, res) => {
 export const getBarberAppointments = asyncHandler(async (req, res) => {
   const { barberId } = req.params;
 
-  // Barber can only access their own appointments
-  if (
-    req.user.role !== "admin" &&
-    req.user._id.toString() !== barberId
-  ) {
+  // Only admin can view barber's appointments (barbers don't log in)
+  if (req.user.role !== "admin") {
     throw new ApiError(
       403,
       "You are not allowed to view these appointments"
@@ -487,7 +503,7 @@ export const getBarberAppointments = asyncHandler(async (req, res) => {
     .populate("customer", "name email phone avatar")
     .populate(
       "barber",
-      "name avatar experience specialization rating startTime endTime"
+      "name avatar experience specialization rating"
     )
     .populate("services")
     .sort({
@@ -558,9 +574,15 @@ export const cancelAppointment = asyncHandler(async (req, res) => {
     .populate("customer", "name email phone avatar")
     .populate(
       "barber",
-      "name email phone avatar experience specialization rating"
+      "name phone avatar experience specialization rating"
     )
     .populate("services");
+
+  // Emit Real-Time Event
+  const io = req.app.get("io");
+  if (io) {
+    io.emit("appointment_updated", updatedAppointment);
+  }
 
   return res.status(200).json(
     new ApiResponse(
@@ -583,11 +605,8 @@ export const completeAppointment = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Appointment not found");
   }
 
-  // Only the assigned barber or an admin can complete the appointment
-  if (
-    req.user.role !== "admin" &&
-    appointment.barber.toString() !== req.user._id.toString()
-  ) {
+  // Only admin can complete appointments (barbers don't log in)
+  if (req.user.role !== "admin") {
     throw new ApiError(
       403,
       "You are not allowed to complete this appointment"
@@ -643,9 +662,15 @@ export const completeAppointment = asyncHandler(async (req, res) => {
     .populate("customer", "name email phone avatar")
     .populate(
       "barber",
-      "name email phone avatar experience specialization rating"
+      "name phone avatar experience specialization rating"
     )
     .populate("services");
+
+  // Emit Real-Time Event
+  const io = req.app.get("io");
+  if (io) {
+    io.emit("appointment_updated", updatedAppointment);
+  }
 
   return res.status(200).json(
     new ApiResponse(
@@ -806,9 +831,15 @@ export const rescheduleAppointment = asyncHandler(async (req, res) => {
     )
     .populate(
       "barber",
-      "name email phone avatar experience specialization rating startTime endTime"
+      "name phone avatar experience specialization rating"
     )
     .populate("services");
+
+  // Emit Real-Time Event
+  const io = req.app.get("io");
+  if (io) {
+    io.emit("appointment_updated", updatedAppointment);
+  }
 
   return res.status(200).json(
     new ApiResponse(

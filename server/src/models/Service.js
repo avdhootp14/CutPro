@@ -60,10 +60,10 @@ const serviceSchema = new mongoose.Schema(
       default: true,
     },
 
-    shopOwner: {
+    shopId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: [true, "Service must belong to a shop owner (admin)"],
+      ref: "Shop",
+      required: [true, "Service must belong to a shop"],
     },
   },
   {
@@ -71,8 +71,8 @@ const serviceSchema = new mongoose.Schema(
   }
 );
 
-// Ensure that a specific shop owner cannot have duplicate service names
-serviceSchema.index({ shopOwner: 1, name: 1 }, { unique: true });
+// Ensure that a specific shop cannot have duplicate service names
+serviceSchema.index({ shopId: 1, name: 1 }, { unique: true });
 
 const Service = mongoose.model("Service", serviceSchema);
 

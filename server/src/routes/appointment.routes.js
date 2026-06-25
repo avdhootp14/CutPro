@@ -14,7 +14,7 @@ import {
 
 import verifyJWT from "../middleware/verifyJWT.js";
 import verifyCustomer from "../middleware/verifyCustomer.js";
-import verifyBarber from "../middleware/verifyBarber.js";
+import verifyAdmin from "../middleware/verifyAdmin.js";
 
 const router = express.Router();
 
@@ -44,11 +44,11 @@ router.get(
   getCustomerAppointments
 );
 
-// Barber history
+// Barber history (admin only — barbers don't log in)
 router.get(
   "/barber/:barberId",
   verifyJWT,
-  verifyBarber,
+  verifyAdmin,
   getBarberAppointments
 );
 
@@ -74,11 +74,11 @@ router.patch(
   cancelAppointment
 );
 
-// Complete appointment (Barber only)
+// Complete appointment (Admin only — barbers don't log in)
 router.patch(
   "/:id/complete",
   verifyJWT,
-  verifyBarber,
+  verifyAdmin,
   completeAppointment
 );
 

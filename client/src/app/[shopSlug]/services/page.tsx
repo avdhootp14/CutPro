@@ -13,6 +13,8 @@ interface Service {
   duration: number;
   category: string;
   image?: string;
+  hasOffer?: boolean;
+  discountPrice?: number;
 }
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
@@ -47,9 +49,9 @@ const Services: React.FC = () => {
       try {
         const res = await axios.get(`/services?shopSlug=${shopSlug || ''}`);
         const data = res.data?.data || res.data?.services || res.data || [];
-        setServices(Array.isArray(data) && data.length > 0 ? data : FALLBACK_SERVICES);
+        setServices(Array.isArray(data) ? data : []);
       } catch {
-        setServices(FALLBACK_SERVICES);
+        setServices([]);
       } finally {
         setLoading(false);
       }
@@ -119,7 +121,14 @@ const Services: React.FC = () => {
                   <div className="flex items-center gap-1.5 text-gray-400 text-[0.85rem]">
                     <Clock size={14} /> {service.duration} min
                   </div>
-                  <div className="text-[1.25rem] font-bold text-accent">₹{service.price}</div>
+                  {service.hasOffer && service.discountPrice ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 line-through text-[0.9rem]">₹{service.price}</span>
+                      <div className="text-[1.25rem] font-bold text-accent">₹{service.discountPrice}</div>
+                    </div>
+                  ) : (
+                    <div className="text-[1.25rem] font-bold text-accent">₹{service.price}</div>
+                  )}
                 </div>
               </div>
             </div>

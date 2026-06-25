@@ -169,22 +169,16 @@ export const getCurrentServing = asyncHandler(async (req, res) => {
 /* -------------------------------------------------------------------------- */
 
 export const nextCustomer = asyncHandler(async (req, res) => {
-  // Only barber or admin can move the queue
-  if (
-    req.user.role !== "barber" &&
-    req.user.role !== "admin"
-  ) {
+  // Only admin can move the queue
+  if (req.user.role !== "admin") {
     throw new ApiError(
       403,
-      "Only barber or admin can move the queue"
+      "Only admin can move the queue"
     );
   }
 
-  // Logged-in barber's ID
-  const barberId =
-    req.user.role === "admin"
-      ? req.params.barberId
-      : req.user._id;
+  // Barber ID from params
+  const barberId = req.params.barberId;
 
   // Find current serving customer
   const current = await Queue.findOne({

@@ -112,6 +112,11 @@ const AdminLogin: React.FC = () => {
                   {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
+              <div className="flex justify-end mt-2">
+                <Link href="/forgot-password" className="text-[0.75rem] text-accent hover:underline">
+                  Forgot Password?
+                </Link>
+              </div>
             </div>
 
             <button

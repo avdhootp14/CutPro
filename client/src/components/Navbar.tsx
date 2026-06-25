@@ -46,7 +46,6 @@ const Navbar: React.FC = () => {
   const getDashboardPath = () => {
     if (!user) return '/dashboard';
     if (user.role === 'admin') return '/admin/dashboard';
-    if (user.role === 'barber') return '/barber-dashboard';
     return '/dashboard';
   };
 

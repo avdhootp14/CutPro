@@ -2,17 +2,31 @@
 import React from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-
+import axios from 'axios';
 import {
-  Scissors, Star, Sparkles, Award
+  Scissors, Star, Sparkles, Award, Smile
 } from 'lucide-react';
 
-const SERVICES_PREVIEW = [
-  { icon: <Scissors size={28} />, name: 'Classic Haircut', desc: 'Precision cuts tailored to your face shape and personal style.', price: '₹499', duration: '45 min', image: '/images/service-haircut.png' },
-  { icon: <Sparkles size={28} />, name: 'Beard Sculpting', desc: 'Expert beard trimming, shaping, and hot towel treatment.', price: '₹349', duration: '30 min', image: '/images/service-beard.png' },
-  { icon: <Award size={28} />, name: 'Royal Package', desc: 'Full haircut, beard trim, facial, and head massage combo.', price: '₹999', duration: '90 min', image: '/images/service-royal.png' },
-  { icon: <Star size={28} />, name: 'Hair Coloring', desc: 'Premium hair coloring with salon-grade products.', price: '₹799', duration: '60 min', image: '/images/service-coloring.png' },
-];
+interface Service {
+  _id: string;
+  name: string;
+  price: number;
+  duration: number;
+  category: string;
+  image?: string;
+  hasOffer?: boolean;
+  discountPrice?: number;
+}
+
+const CATEGORY_ICONS: Record<string, React.ReactNode> = {
+  Hair: <Scissors size={28} />,
+  Beard: <Sparkles size={28} />,
+  Spa: <Award size={28} />,
+  Facial: <Star size={28} />,
+  Color: <Star size={28} />,
+  Kids: <Smile size={28} />,
+  Other: <Scissors size={28} />
+};
 
 const TESTIMONIALS = [
   { name: 'Rahul S.', rating: 5, text: 'Best barbershop in the city! The attention to detail is unmatched. My go-to place for every haircut.', avatar: 'RS' },
@@ -30,6 +44,20 @@ const STATS = [
 const Home: React.FC = () => {
   const { shopSlug } = useParams() as any;
   const base = `/${shopSlug || ''}`;
+  const [servicesPreview, setServicesPreview] = React.useState<Service[]>([]);
+
+  React.useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const res = await axios.get(`/services?shopSlug=${shopSlug || ''}`);
+        const data = res.data?.data || res.data?.services || res.data || [];
+        setServicesPreview(Array.isArray(data) ? data.slice(0, 4) : []);
+      } catch {
+        setServicesPreview([]);
+      }
+    };
+    if (shopSlug) fetchServices();
+  }, [shopSlug]);
 
   return (
     <div className="pb-16 bg-bgPrimary">
@@ -50,7 +78,6 @@ const Home: React.FC = () => {
             </div>
             
             <h1 className="font-serif font-bold leading-[1.1] tracking-tight text-[clamp(3.5rem,8vw,5.5rem)] mb-6 text-white">
-              Perfect<br />
               Perfect<br />
               modern<br />
               styling
@@ -129,7 +156,7 @@ const Home: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {SERVICES_PREVIEW.map((service, i) => (
+            {servicesPreview.map((service, i) => (
               <div key={i} className="card p-0 flex flex-col group overflow-hidden animate-fade-up" style={{ animationDelay: `${i * 100}ms` }}>
                 {service.image && (
                   <div className="w-full h-48 overflow-hidden relative">
@@ -139,13 +166,19 @@ const Home: React.FC = () => {
                 )}
                 <div className="p-7 flex flex-col gap-3 flex-1">
                   <div className="w-12 h-12 flex items-center justify-center bg-accent/10 rounded-xl text-accent shadow-[0_0_15px_rgba(212,175,55,0.15)] group-hover:bg-accent group-hover:text-black transition-colors duration-300">
-                    {service.icon}
+                    {CATEGORY_ICONS[service.category] || <Scissors size={28} />}
                   </div>
                   <h3 className="font-sans text-[1.25rem] font-bold mt-2">{service.name}</h3>
-                  <p className="text-gray-400 text-[0.9rem] leading-[1.6] flex-1">{service.desc}</p>
                   <div className="flex justify-between items-center pt-4 border-t border-white/5 mt-auto">
-                    <span className="text-[0.75rem] uppercase tracking-[0.1em] text-gray-500">{service.duration}</span>
-                    <span className="text-[1.2rem] font-serif font-bold text-accent">{service.price}</span>
+                    <span className="text-[0.75rem] uppercase tracking-[0.1em] text-gray-500">{service.duration} min</span>
+                    {service.hasOffer && service.discountPrice ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500 line-through text-[0.9rem]">₹{service.price}</span>
+                        <span className="text-[1.2rem] font-serif font-bold text-accent">₹{service.discountPrice}</span>
+                      </div>
+                    ) : (
+                      <span className="text-[1.2rem] font-serif font-bold text-accent">₹{service.price}</span>
+                    )}
                   </div>
                 </div>
               </div>

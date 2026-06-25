@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { useSocket } from '@/context/SocketContext';
 import Link from 'next/link';
 
 import { Users, Calendar, Scissors, Box, IndianRupee, TrendingUp, ArrowUpRight } from 'lucide-react';
@@ -37,6 +38,27 @@ const AdminDashboard: React.FC = () => {
     };
     fetchStats();
   }, []);
+
+  const { socket } = useSocket();
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleUpdate = () => {
+      // Refresh stats on new bookings or updates
+      axios.get('/admin/stats', { withCredentials: true })
+        .then(({ data }) => setStats(data.data))
+        .catch(err => console.error('Failed to refresh stats', err));
+    };
+
+    socket.on('appointment_created', handleUpdate);
+    socket.on('appointment_updated', handleUpdate);
+
+    return () => {
+      socket.off('appointment_created', handleUpdate);
+      socket.off('appointment_updated', handleUpdate);
+    };
+  }, [socket]);
 
   if (loading) {
     return (
